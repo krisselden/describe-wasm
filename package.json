@@ -1,0 +1,25 @@
+{
+  "name": "describe-wasm",
+  "version": "0.1.0",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "author": {
+    "name": "Kris Selden",
+    "email": "kris.selden@gmail.com"
+  },
+  "files": [
+    "index.js",
+    "index.js.map",
+    "index.d.ts",
+    "index.ts"
+  ],
+  "scripts": {
+    "prepare": "tsc",
+    "test": "node test.js"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^8.0.55",
+    "typescript": "^2.6.2"
+  }
+}
