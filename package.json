@@ -18,8 +18,10 @@
     "test": "node test.js"
   },
   "license": "MIT",
+  "dependencies": {
+    "@types/node": "^8.0.55"
+  },
   "devDependencies": {
-    "@types/node": "^8.0.55",
     "typescript": "^2.6.2"
   }
 }
