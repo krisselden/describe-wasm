@@ -6,7 +6,7 @@
     "wasm",
     "reader",
     "imports",
-    "exports"
+    "exports",
     "types"
   ],
   "main": "dist/index.js",
