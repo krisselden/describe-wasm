@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as assert from "assert";
 import read from "./index";
 
-const wasm = read(fs.readFileSync("rust.wasm"));
+const wasm = read(fs.readFileSync("vendor/rust.wasm"));
 
 assert.deepEqual(wasm, {
   "signatures": [
