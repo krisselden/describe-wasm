@@ -97,13 +97,13 @@ export interface Wasm {
   exports: Export[];
 }
 
-export default function read(bytes: Buffer) {
+export default function read(bytes: Uint8Array) {
   const reader = {
     bytes,
     pos: 0,
   };
-  assert.equal(readUInt32LE(reader), 0x6d736100, "magic");
-  assert.equal(readUInt32LE(reader), 1, "version");
+  assert.equal(readUint32LE(reader), 0x6d736100, "magic");
+  assert.equal(readUint32LE(reader), 1, "version");
 
   const wasm: Wasm = {
     signatures: [],
@@ -120,8 +120,8 @@ export default function read(bytes: Buffer) {
 }
 
 function readSection(reader: Reader, wasm: Wasm) {
-  const sectionType = readUnsignedLEB128(reader) as SectionType;
-  const sectionSize = readUnsignedLEB128(reader);
+  const sectionType = readLEB128(reader) as SectionType;
+  const sectionSize = readLEB128(reader);
   const sectionEnd = reader.pos + sectionSize;
   if (sectionType === SectionType.Type) {
     readTypeSection(reader, sectionEnd, wasm);
@@ -137,11 +137,11 @@ function readSection(reader: Reader, wasm: Wasm) {
 }
 
 function readExportSection(reader: Reader, end: number, wasm: Wasm) {
-  const exportLength = readUnsignedLEB128(reader);
+  const exportLength = readLEB128(reader);
   for (let exportIndex = 0; exportIndex < exportLength; exportIndex++) {
     const name = readString(reader);
-    const kind = ExternalKindNames[reader.bytes[reader.pos++] as ExternalKind];
-    const index = readUnsignedLEB128(reader);
+    const kind = ExternalKindNames[readUint8(reader) as ExternalKind];
+    const index = readLEB128(reader);
     wasm.exports.push({
       name,
       kind,
@@ -152,18 +152,18 @@ function readExportSection(reader: Reader, end: number, wasm: Wasm) {
 }
 
 function readImportSection(reader: Reader, end: number, wasm: Wasm) {
-  const importLength = readUnsignedLEB128(reader);
+  const importLength = readLEB128(reader);
   for (let importIndex = 0; importIndex < importLength; importIndex++) {
     const mod = readString(reader);
     const name = readString(reader);
-    const kind = reader.bytes[reader.pos++] as ExternalKind;
+    const kind = readUint8(reader) as ExternalKind;
     switch (kind) {
       case ExternalKind.Function:
         wasm.imports.push({
           module: mod,
           name,
           kind: "Function",
-          signature: readUnsignedLEB128(reader),
+          signature: readLEB128(reader),
         });
         break;
       case ExternalKind.Global:
@@ -172,15 +172,15 @@ function readImportSection(reader: Reader, end: number, wasm: Wasm) {
           name,
           kind: "Global",
           type: TypeNames[readSignedLEB128(reader) as Type],
-          mutable: readUInt8(reader) === 1,
+          mutable: readUint8(reader) === 1,
         });
         break;
       case ExternalKind.Table:
         assert.equal(readSignedLEB128(reader), Type.anyfunc);
         // fallthrough
       case ExternalKind.Memory:
-        const hasMax = readUInt8(reader) === 1;
-        const initial = readUnsignedLEB128(reader);
+        const hasMax = readUint8(reader) === 1;
+        const initial = readLEB128(reader);
         const entry: any = {
           module: mod,
           name,
@@ -188,7 +188,7 @@ function readImportSection(reader: Reader, end: number, wasm: Wasm) {
           initial,
         };
         if (hasMax) {
-          entry.maximum = readUnsignedLEB128(reader);
+          entry.maximum = readLEB128(reader);
         }
         wasm.imports.push(entry);
         break;
@@ -199,7 +199,7 @@ function readImportSection(reader: Reader, end: number, wasm: Wasm) {
 }
 
 function readTypeSection(reader: Reader, end: number, wasm: Wasm) {
-  const typeLength = readUnsignedLEB128(reader);
+  const typeLength = readLEB128(reader);
   for (let typeIndex = 0; typeIndex < typeLength; typeIndex++) {
     const type: Signature = {
       params: [],
@@ -209,12 +209,12 @@ function readTypeSection(reader: Reader, end: number, wasm: Wasm) {
 
     assert.equal(readSignedLEB128(reader), Type.func);
 
-    const paramLength = readUnsignedLEB128(reader);
+    const paramLength = readLEB128(reader);
     for (let paramIndex = 0; paramIndex < paramLength; paramIndex++) {
       type.params.push(TypeNames[readSignedLEB128(reader) as Type]);
     }
 
-    const resultLength = readUnsignedLEB128(reader);
+    const resultLength = readLEB128(reader);
     if (resultLength > 0) {
       assert.equal(resultLength, 1);
       type.return = TypeNames[readSignedLEB128(reader) as Type];
@@ -224,38 +224,72 @@ function readTypeSection(reader: Reader, end: number, wasm: Wasm) {
 }
 
 function readFunctionSection(reader: Reader, end: number, wasm: Wasm) {
-  const functionLength = readUnsignedLEB128(reader);
+  const functionLength = readLEB128(reader);
   for (let functionIndex = 0; functionIndex < functionLength; functionIndex++) {
-    wasm.functions.push(readUnsignedLEB128(reader));
+    wasm.functions.push(readLEB128(reader));
   }
   reader.pos = end;
 }
 
 function readString(reader: Reader): string {
-  const length = readUnsignedLEB128(reader);
-  const start = reader.pos;
-  const end = start + length;
-  reader.pos = end;
-  return reader.bytes.toString("utf8", start, end);
+  const length = readLEB128(reader);
+  return readUTF8(reader, length);
 }
 
-function readUInt32LE(reader: Reader): number {
-  const res = reader.bytes.readUInt32LE(reader.pos);
-  reader.pos += 4;
-  return res;
+function readUTF8(reader: Reader, length: number): string {
+  let str = "";
+  const end = reader.pos + length;
+  while (reader.pos < end) {
+    str += String.fromCodePoint(readUTF8CodePoint(reader));
+  }
+  return str;
 }
 
-function readUInt8(reader: Reader): number {
-  const res = reader.bytes.readUInt8(reader.pos);
-  reader.pos++;
-  return res;
+function readUTF8CodePoint(reader: Reader) {
+  let codepoint = readUint8(reader);
+  if (codepoint < 0x80) {
+    return codepoint;
+  }
+
+  let bytes = 0;
+  do {
+    codepoint <<= 1;
+    bytes++;
+  } while (codepoint & 0x80 && bytes < 6);
+  codepoint >>= bytes;
+
+  if (bytes === 1) {
+    return 0xfffd;
+  }
+
+  while (--bytes) {
+    let byte = readUint8(reader);
+    if ((byte & 0xc0) !== 0x80) {
+      return 0xfffd;
+    }
+    codepoint = (codepoint << 6) + (byte & 0x3f);
+  }
+
+  return codepoint;
 }
 
-function readUnsignedLEB128(reader: Reader): number {
+function readUint32LE(reader: Reader): number {
+  return (
+    (readUint8(reader) | (readUint8(reader) << 8) | (readUint8(reader) << 16)) +
+    readUint8(reader) * 0x1000000
+  );
+}
+
+function readUint8(reader: Reader): number {
+  return reader.bytes[reader.pos++];
+}
+
+// TODO this does not handle sign bit for uint32
+function readLEB128(reader: Reader): number {
   let result = 0;
   let shift = 0;
   while(true) {
-    let byte = reader.bytes[reader.pos++];
+    let byte = readUint8(reader);
     result |= (byte & 0x7f) << shift;
     if ((byte & 0x80) == 0)
       break;
@@ -269,7 +303,7 @@ function readSignedLEB128(reader: Reader): number {
   let shift = 0;
   let byte;
   do {
-    byte = reader.bytes[reader.pos++];
+    byte = readUint8(reader);
     result |= (byte & 0x7f) << shift;
     shift += 7;
   } while((byte & 0x80) != 0);
@@ -282,6 +316,6 @@ function readSignedLEB128(reader: Reader): number {
 }
 
 interface Reader {
-  bytes: Buffer;
+  bytes: Uint8Array;
   pos: number;
 }
