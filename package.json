@@ -7,6 +7,10 @@
     "name": "Kris Selden",
     "email": "kris.selden@gmail.com"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/krisselden/describe-wasm.git"
+  },
   "files": [
     "dist/index.*",
     "index.ts"
