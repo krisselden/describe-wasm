@@ -1,6 +1,14 @@
 {
   "name": "describe-wasm",
   "version": "0.1.3",
+  "description": "Reads the interface info (imports, exports, and signatures) from a wasm file.",
+  "keywords": [
+    "wasm",
+    "reader",
+    "imports",
+    "exports"
+    "types"
+  ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "author": {

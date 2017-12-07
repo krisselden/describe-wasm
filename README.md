@@ -1,15 +1,19 @@
 # describe-wasm
 
-Reads interface info from a wasm file for building type declaration file.
+Reads the interface info (imports, exports, and their signatures) from a wasm file.
 
+Useful for generating type declarations.
+
+```ts
+function describeWasm(wasmbuffer: Uint8Array): WasmInfo;
+```
+
+## Example
 ```js
 import * as fs from "fs";
 import describeWasm from "describe-wasm";
 
 const wasmInfo = describeWasm(fs.readFileSync("mylib.wasm"));
 
-console.log(wasmInfo.signatures[0]);
-console.log(wasmInfo.imports[0]);
-console.log(wasmInfo.functions[0]);
-console.log(wasmInfo.exports[0]);
+console.log(JSON.stringify(wasmInfo, null, 2));
 ```
