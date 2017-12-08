@@ -250,18 +250,15 @@ function readUTF8CodePoint(reader: Reader) {
   if (codepoint < 0x80) {
     return codepoint;
   }
-
   let bytes = 0;
   do {
-    codepoint <<= 1;
+    codepoint = (codepoint << 1) & 0xff;
     bytes++;
-  } while (codepoint & 0x80 && bytes < 6);
-  codepoint >>= bytes;
-
+  } while (codepoint & 0x80 && bytes < 5);
+  codepoint = codepoint >> bytes;
   if (bytes === 1) {
     return 0xfffd;
   }
-
   while (--bytes) {
     let byte = readUint8(reader);
     if ((byte & 0xc0) !== 0x80) {
@@ -269,7 +266,6 @@ function readUTF8CodePoint(reader: Reader) {
     }
     codepoint = (codepoint << 6) + (byte & 0x3f);
   }
-
   return codepoint;
 }
 
